@@ -16,7 +16,7 @@ Everything runs on your own Mac. No account, no server, no subscription.
 
 ## Meet Chichi
 
-<img src="art/chichi/chichi-jump.gif" width="128" align="right" alt="Chichi, a pixel-art rook holding a cheat sheet, jumping">
+<img src="art/chichi/chichi-jump-board.gif" width="128" align="right" alt="Chichi, a pixel-art rook holding a cheat sheet, jumping on a chessboard">
 
 Chichi is the coach. He is the club player who wanders over, looks at the board
 for three seconds, says the one thing that matters, and goes back to his own
