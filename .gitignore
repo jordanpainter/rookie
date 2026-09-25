@@ -1,0 +1,17 @@
+# SwiftPM build output
+.build/
+*.xcodeproj
+.swiftpm/
+
+# Backups left next to rewritten scripts (pre-git safety net)
+*.bak
+
+# macOS
+.DS_Store
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Built app and release zip
+dist/
