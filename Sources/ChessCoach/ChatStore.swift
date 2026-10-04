@@ -217,6 +217,9 @@ final class ChatStore: ObservableObject {
         /// allowed list was built from the candidate moves and the game and
         /// these live in neither.
         var factMoves = ""
+        /// Said by the app itself, when the question has one right answer that
+        /// the model would only get wrong.
+        var directAnswer: String?
         /// Every check the player has, which is exhaustive. Empty means a claim
         /// that there is one is false: "you have a check with the bishop on d2"
         /// was written three times out of an empty list.
@@ -361,6 +364,18 @@ final class ChatStore: ObservableObject {
             let lower = text.lowercased()
             let whose = lower.contains("my ") || lower.contains("mine") ? "mine" : "theirs"
             if let focus = await ask(["op": "piece_focus", "piece": piece, "whose": whose]) {
+                // Asked "is my knight in trouble?" with no knight on the board,
+                // the model described one anyway and the answer was binned. The
+                // player is left with a shrug when the true answer is one line,
+                // and the daemon already knows it.
+                if let data = focus.data(using: .utf8),
+                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   (object["found"] as? [[String: Any]])?.isEmpty == true {
+                    context.directAnswer = whose == "mine"
+                        ? "You haven't got a \(piece) on the board."
+                        : "They haven't got a \(piece) on the board."
+                    return (text, context)
+                }
                 named = """
 
                 THE PIECE HE IS ASKING ABOUT: \(focus)
@@ -1279,6 +1294,11 @@ final class ChatStore: ObservableObject {
                 // engine's candidate moves ride along here and deliberately not
                 // in the automatic Socratic packet.
                 let (message, context) = await withPosition(text)
+                if let direct = context.directAnswer {
+                    messages[loadingIndex].text = direct
+                    messages[loadingIndex].isLoading = false
+                    return
+                }
                 // Bounded by patience, not by the default. With the model's
                 // backend down, a typed question sat on a loading bubble for the
                 // full three minutes and then said "The request timed out".

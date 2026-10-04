@@ -5,7 +5,7 @@
 <h1 align="center">Rookie</h1>
 
 <p align="center">
-  <b>An Open Source MacOS Chess Coach App</b>
+  <b>An open source chess coach for macOS</b>
 </p>
 
 For people who are still learning. It plays, it warns you before you hang a
@@ -15,26 +15,25 @@ wrong.
 Everything runs on your own Mac. No account, no server, no subscription.
 
 <p align="center">
-  <img src="docs/media/play.png" width="760" alt="Rookie mid-game: a glass board with hand-drawn pieces, the coaching dial and blunder guard below it, and Chichi answering a question in the panel on the right">
+  <img src="docs/media/demo.gif" width="700" alt="Rookie in use: a move is played, the engine answers, Chichi remarks on the position, and a typed question comes back with real moves">
 </p>
 
 ## Background
 
-I'm not very good at chess. And it bothers me. So this is what I came up with. Rookie is an app that allows you to play against bots at various levels, practice drills, solve puzzles made out of your old blunders.
+I'm not very good at chess. And it bothers me. So this is what I came up with.
+
+You play bots that are actually beatable, drill puzzles built from your own old
+blunders rather than a stranger's, and get told what you just did wrong while
+you can still do something about it.
 
 ## Meet Chichi
 
 <img src="art/chichi/chichi-jump-board.gif" width="128" align="right" alt="Chichi, a pixel-art rook holding a cheat sheet, jumping on a chessboard">
 
-Chichi is the coach. He does not work the chess out. Stockfish does that and
-hands him the facts: what is hanging, what is attacked, where a piece can go,
-whether there is mate. Chichi turns them into a sentence, the way the decent
-player next to you would.
-
-Then his sentence is checked against the same facts, and anything that does not
-match is thrown away instead of shown. That is the whole trick: a small model
-running on your laptop, kept to the one job it is good at, and never trusted on
-the chess.
+Chichi is the coach, and he talks like the decent player sitting next to you:
+"that knight's attacked twice and defended once, so it comes off next move
+unless it moves or gets help". Ask him anything mid-game, in plain English, and
+he answers about the position in front of you.
 
 ## What you can do with it
 
