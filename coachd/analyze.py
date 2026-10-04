@@ -146,13 +146,13 @@ def classify(loss):
 def analyse_game(game_data, username):
     white = game_data["white"]["username"]
     black = game_data["black"]["username"]
-    jordan_color = chess.WHITE if white.lower() == username.lower() else chess.BLACK
-    side = game_data["white"] if jordan_color == chess.WHITE else game_data["black"]
+    your_colour = chess.WHITE if white.lower() == username.lower() else chess.BLACK
+    side = game_data["white"] if your_colour == chess.WHITE else game_data["black"]
 
     print(f"Game: {white} (white) vs {black} (black) — {game_data.get('time_class', '?')}")
     if game_data.get("end_time"):
         print(f"Played: {datetime.date.fromtimestamp(game_data['end_time']).isoformat()}")
-    print(f"You played {'white' if jordan_color == chess.WHITE else 'black'}, "
+    print(f"You played {'white' if your_colour == chess.WHITE else 'black'}, "
           f"result: {side['result']}")
     print(f"URL: {game_data.get('url', '(no url)')}")
     print()
@@ -183,7 +183,7 @@ def analyse_game(game_data, username):
         loss = max(0, best_eval - played_eval)
         severity = classify(loss)
 
-        if severity and mover == jordan_color:
+        if severity and mover == your_colour:
             flagged.append({
                 "move_num": ply // 2 + 1,
                 "played": san,

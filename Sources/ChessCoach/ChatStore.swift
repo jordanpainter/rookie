@@ -202,6 +202,9 @@ final class ChatStore: ObservableObject {
         /// The automatic coaching line has had this since it caused exactly
         /// that; typed answers were still being checked without it.
         var recent: [String: String] = [:]
+        /// Square to "yours" or "theirs", and the same two plies back.
+        var owners: [String: String] = [:]
+        var ownersRecent: [String: String] = [:]
         var mobility: [String: String] = [:]
         var attackMap: [String: String] = [:]
         /// Every piece move and capture the answer is allowed to name: the
@@ -265,6 +268,8 @@ final class ChatStore: ObservableObject {
            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             context.squares = object["squares"] as? [String: String] ?? [:]
             context.recent = object["squares_recent"] as? [String: String] ?? [:]
+            context.owners = object["owners"] as? [String: String] ?? [:]
+            context.ownersRecent = object["owners_recent"] as? [String: String] ?? [:]
             context.mobility = object["your_mobility"] as? [String: String] ?? [:]
             context.attackMap = object["attack_map"] as? [String: String] ?? [:]
             context.checks = object["your_checks"] as? [String] ?? []
@@ -426,6 +431,8 @@ final class ChatStore: ObservableObject {
     func coach(prompt: String,
                squares: [String: String] = [:],
                recent: [String: String] = [:],
+               owners: [String: String] = [:],
+               ownersRecent: [String: String] = [:],
                mobility: [String: String] = [:],
                attackMap: [String: String] = [:],
                checks: [String] = [],
@@ -470,7 +477,9 @@ final class ChatStore: ObservableObject {
                                                           recent: recent,
                                                           mobility: mobility,
                                                           attackMap: attackMap,
-                                                          checks: checks) {
+                                                          checks: checks,
+                                                          owners: owners,
+                                                          ownersRecent: ownersRecent) {
                         // Say what was caught rather than quietly swapping the
                         // text. A coach that is wrong and a coach that is
                         // covering for itself are equally hard to trust.
@@ -487,7 +496,7 @@ final class ChatStore: ObservableObject {
                 // and saying nothing about the board makes a freed one look stuck.
                 if loadingIndex < messages.count {
                     messages[loadingIndex].text =
-                        "⚠️ \(error.localizedDescription) Play on; the board is not waiting."
+                        "⚠️ \(Self.explain(error)) Play on; the board is not waiting."
                     messages[loadingIndex].isLoading = false
                 }
             }
@@ -656,6 +665,39 @@ final class ChatStore: ObservableObject {
         return nil
     }
 
+    /// A piece claimed as the player's when it is the opponent's, or the other
+    /// way round.
+    ///
+    /// "Your pawn on f7 is undefended and can be taken by your rook on f1"
+    /// names two of their pieces as his. Every other check passed it: the pawn
+    /// really was on f7, the rook really was on f1, and nothing until now knew
+    /// whose they were.
+    ///
+    /// A capture changes who owns a square, so a sentence about what just
+    /// happened is checked against the board two plies back as well.
+    static func falseOwner(_ line: String, owners: [String: String],
+                           recent: [String: String]) -> String? {
+        guard !owners.isEmpty else { return nil }
+        let pattern = "\\b(your|their|his|her|its|my)\\s+(?:own\\s+)?"
+            + "(king|queen|rook|bishop|knight|pawn)s?\\s+(?:on|at)\\s+([a-h][1-8])\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern,
+                                                   options: .caseInsensitive) else { return nil }
+        let text = line as NSString
+        for match in regex.matches(in: line, range: NSRange(location: 0, length: text.length)) {
+            let said = text.substring(with: match.range(at: 1)).lowercased()
+            let piece = text.substring(with: match.range(at: 2)).lowercased()
+            let square = text.substring(with: match.range(at: 3)).lowercased()
+            // "my" is the coach speaking about nothing real; the player is "you".
+            let claimed = ["your", "my"].contains(said) ? "yours" : "theirs"
+            guard let owner = owners[square] else { continue }
+            if owner != claimed && recent[square] != claimed {
+                return "the \(piece) on \(square) as \(said == "your" ? "yours" : "theirs"), "
+                    + "when it is \(owner == "yours" ? "yours" : "theirs")"
+            }
+        }
+        return nil
+    }
+
     /// A check offered when the player does not have one.
     ///
     /// `your_checks` is exhaustive, so an empty list makes "you have a check with
@@ -703,7 +745,10 @@ final class ChatStore: ObservableObject {
                            recent: [String: String] = [:],
                            mobility: [String: String] = [:],
                            attackMap: [String: String] = [:],
-                           checks: [String] = []) -> String? {
+                           checks: [String] = [],
+                           owners: [String: String] = [:],
+                           ownersRecent: [String: String] = [:]) -> String? {
+        if let wrong = falseOwner(line, owners: owners, recent: ownersRecent) { return wrong }
         if let wrong = falseImmobility(line, mobility: mobility) { return wrong }
         if let wrong = falseRelation(line, attackMap: attackMap) { return wrong }
         if let wrong = falseCheckOffer(line, checks: checks) { return wrong }
@@ -730,6 +775,20 @@ final class ChatStore: ObservableObject {
             }
         }
         return nil
+    }
+
+    /// What to say when the model does not answer.
+    ///
+    /// `localizedDescription` for a timeout is "The request timed out", which
+    /// tells somebody staring at a chess app precisely nothing about what to do.
+    static func explain(_ error: Error) -> String {
+        if let ollama = error as? OllamaError { return ollama.errorDescription ?? "\(ollama)" }
+        if (error as? URLError)?.code == .timedOut {
+            return "Chichi took too long, so I stopped waiting. The first question after "
+                + "opening Rookie can be slow while the model loads, so it is worth one more try; "
+                + "if it keeps happening, check Ollama is running."
+        }
+        return error.localizedDescription
     }
 
     /// Piece moves and captures written in SAN, check marks dropped. Plain pawn
@@ -1220,7 +1279,10 @@ final class ChatStore: ObservableObject {
                 // engine's candidate moves ride along here and deliberately not
                 // in the automatic Socratic packet.
                 let (message, context) = await withPosition(text)
-                let result = try await CoachModel.ask(message)
+                // Bounded by patience, not by the default. With the model's
+                // backend down, a typed question sat on a loading bubble for the
+                // full three minutes and then said "The request timed out".
+                let result = try await CoachModel.ask(message, timeoutSeconds: 60)
                 if loadingIndex < messages.count {
                     // Typed answers went unchecked until a line saying "he
                     // cannot take your bishop" cost a bishop to Kxf7. The
@@ -1231,7 +1293,9 @@ final class ChatStore: ObservableObject {
                                                 recent: context.recent,
                                                 mobility: context.mobility,
                                                 attackMap: context.attackMap,
-                                                checks: context.checks)
+                                                checks: context.checks,
+                                                owners: context.owners,
+                                                ownersRecent: context.ownersRecent)
                     // Showing the answer under a warning not to trust it is the
                     // worst of both: he asked because he could not read the
                     // position himself, so he cannot tell which half was wrong.
@@ -1251,7 +1315,7 @@ final class ChatStore: ObservableObject {
                 }
             } catch {
                 if loadingIndex < messages.count {
-                    messages[loadingIndex].text = "⚠️ \(error.localizedDescription)"
+                    messages[loadingIndex].text = "⚠️ \(Self.explain(error))"
                     messages[loadingIndex].isLoading = false
                 }
             }

@@ -11,7 +11,7 @@ struct GameState: Decodable {
     let level: Int?
     /// Present only on a move reply, and only when the engine answered.
     let afterYourMove: AfterYourMove?
-    let jordanPlayed: String?
+    let youPlayed: String?
     let enginePlayed: String?
     /// Set when a pawn reached the last rank and the app still has to say which
     /// piece it becomes. No move has been applied yet in that case.
@@ -45,7 +45,7 @@ struct GameState: Decodable {
         case myColour = "my_colour"
         case afterYourMove = "after_your_move"
         case movesSan = "moves_san"
-        case jordanPlayed = "jordan_played"
+        case youPlayed = "you_played"
         case enginePlayed = "engine_played"
         case needsPromotion = "needs_promotion"
         case checkSquare = "check_square"
@@ -109,6 +109,9 @@ private struct DescribeReply: Decodable {
     let attackMap: [String: String]?
     /// Every check available, exhaustively, so one can't be offered out of thin air.
     let yourChecks: [String]?
+    /// Square to "yours" or "theirs", now and two plies back.
+    let owners: [String: String]?
+    let ownersRecent: [String: String]?
     /// Whether the player is in check in the position the packet describes.
     let inCheck: Bool?
 
@@ -118,6 +121,8 @@ private struct DescribeReply: Decodable {
         case yourMobility = "your_mobility"
         case attackMap = "attack_map"
         case yourChecks = "your_checks"
+        case owners
+        case ownersRecent = "owners_recent"
         case inCheck = "in_check"
     }
 }
@@ -237,6 +242,9 @@ final class GameStore: ObservableObject {
     @Published var coachingAttackMap: [String: String] = [:]
     /// Every check going, so one that isn't can be caught.
     @Published var coachingChecks: [String] = []
+    /// Whose piece is on each square, so "your rook" cannot describe theirs.
+    @Published var coachingOwners: [String: String] = [:]
+    @Published var coachingOwnersRecent: [String: String] = [:]
     /// Whether the line being written has to be a question.
     @Published var coachingMustAsk = false
     /// The true one-line summary, shown if the question fails that check.
@@ -252,6 +260,10 @@ final class GameStore: ObservableObject {
     /// and an empty packet is what taught the model to invent a piece to talk
     /// about. This is always true and always present.
     private var lastVerdict: String?
+    /// What the move just played actually did, as JSON. Carried into the
+    /// coaching packet when the move was a good one, so the line can be about
+    /// what they achieved rather than about the nearest danger.
+    private var lastMoveDid: String?
     /// The word the coaching line opens with, chosen by what the move did and
     /// sent in the packet. Left to the model, only "Nice." and "Whoops." ever
     /// came out, and "Whoops." landed on inaccuracies and once on the best move
@@ -356,6 +368,8 @@ final class GameStore: ObservableObject {
     }
 
     func newGame() {
+        quietFor = 0
+        badNewsRunning = 0
         unfollow()
         lastHeadline = nil
         openingNow = nil
@@ -384,6 +398,9 @@ final class GameStore: ObservableObject {
                 let preview = try? JSONDecoder().decode(PreviewReply.self, from: data)
                 lastVerdict = Self.verdict(preview, played: uci)
                 lastReaction = Self.reaction(preview, played: uci, ply: movesSan.count)
+                // Lifted from the raw reply rather than modelled: it is a bag of
+                // facts for the coach to read, and nothing in Swift needs its shape.
+                lastMoveDid = Self.field("did", in: data)
                 if guardEnabled, let preview, preview.warn, let headline = preview.headline {
                     warning = GuardWarning(uci: preview.uci, san: preview.san,
                                            headline: headline, lossCp: preview.lossCp)
@@ -493,7 +510,7 @@ final class GameStore: ObservableObject {
 
         if following != nil { checkBook() }
 
-        if coaching.usesModel, let played = state.jordanPlayed {
+        if coaching.usesModel, let played = state.youPlayed {
             requestCoaching(played: played, reply: state.enginePlayed)
         }
     }
@@ -511,10 +528,14 @@ final class GameStore: ObservableObject {
             // In Notes he speaks only when there is something to remark on.
             // A remark after every move is the same remark after every move,
             // and stops being read by about the tenth.
-            if mode == .notes && !worthRemarking {
-                lastVerdict = nil
-                lastReaction = nil
-                return
+            if mode == .notes {
+                let speaking = worthRemarking
+                rememberRemark(spoke: speaking, verdict: lastVerdict)
+                if !speaking {
+                    lastVerdict = nil
+                    lastReaction = nil
+                    return
+                }
             }
 
             // Socratic holds the board, because the question is the point and
@@ -526,6 +547,8 @@ final class GameStore: ObservableObject {
             coachingMobility = described?.yourMobility ?? [:]
             coachingAttackMap = described?.attackMap ?? [:]
             coachingChecks = described?.yourChecks ?? []
+            coachingOwners = described?.owners ?? [:]
+            coachingOwnersRecent = described?.ownersRecent ?? [:]
             // "Sweet." above a line about being in check reads as a coach who is
             // not looking. The word is about the move; the check is about now,
             // and now wins.
@@ -534,9 +557,14 @@ final class GameStore: ObservableObject {
             coachingFallback = described?.summary ?? ""
             let (packet, headline) = Facts.forModel(facts, alreadySaid: lastHeadline)
             lastHeadline = headline
+            // Only for a move worth being pleased about. Handed this after a
+            // blunder, the coach would read out what the losing move "achieved".
+            let goodMove = lastVerdict?.hasPrefix("the strongest move") == true
+                || lastVerdict?.hasPrefix("a sound move") == true
+            let didLine = goodMove ? (lastMoveDid.map { "\nWhat their move did: \($0)" } ?? "") : ""
             coachingPrompt = """
             [in-play coaching, mode=\(mode.rawValue.lowercased())]
-            Played: \(played)
+            Played: \(played)\(didLine)
             Reaction to open with: \(lastReaction ?? "none, do not react at all")
             Engine's verdict on it: \(lastVerdict ?? "not measured")
             Opponent replied: \(reply ?? "nothing yet")
@@ -544,6 +572,7 @@ final class GameStore: ObservableObject {
             """
             lastVerdict = nil
             lastReaction = nil
+            lastMoveDid = nil
         }
     }
 
@@ -553,12 +582,38 @@ final class GameStore: ObservableObject {
     /// choice, a real error, or a position with mate in it. An inaccuracy is
     /// too common to be worth interrupting for, and "sound but not best"
     /// describes most moves anyone plays.
+    /// Moves since Notes last said anything, and how many of those remarks in a
+    /// row were about something going wrong.
+    private var quietFor = 0
+    private var badNewsRunning = 0
+
     private var worthRemarking: Bool {
         if lastReaction == "Hell yeah!" { return true }
         guard let verdict = lastVerdict else { return false }
-        return verdict.hasPrefix("the strongest move")
-            || verdict.hasPrefix("mistake")
-            || verdict.hasPrefix("blunder")
+        let bad = verdict.hasPrefix("mistake") || verdict.hasPrefix("blunder")
+        let best = verdict.hasPrefix("the strongest move")
+        let sound = verdict.hasPrefix("a sound move")
+
+        // Against a strong opponent almost nothing you play is the engine's own
+        // choice, so the old rule spoke only for mistakes and blunders: at level
+        // 8 the coach went quiet for long stretches and every time it did speak
+        // it was bad news. A sound move earns a remark once the panel has been
+        // quiet for a while, and two pieces of bad news in a row mean the next
+        // sound move is taken rather than skipped.
+        let earnedBySilence = sound && (quietFor >= 3 || badNewsRunning >= 2)
+        // Being told off six moves running is what a collapse felt like. Once
+        // two remarks in a row have been bad news, an ordinary mistake passes
+        // without comment; a blunder is always worth saying.
+        if badNewsRunning >= 2 && verdict.hasPrefix("mistake") { return false }
+        return best || bad || earnedBySilence
+    }
+
+    /// Called once the decision is made, so the next one knows what came before.
+    private func rememberRemark(spoke: Bool, verdict: String?) {
+        guard spoke else { quietFor += 1; return }
+        quietFor = 0
+        let bad = verdict?.hasPrefix("mistake") == true || verdict?.hasPrefix("blunder") == true
+        badNewsRunning = bad ? badNewsRunning + 1 : 0
     }
 
     /// A word about the move, or nothing.
@@ -610,6 +665,16 @@ final class GameStore: ObservableObject {
                 : "a sound move, it gives nothing away"
         }
         return "\(severity), it costs about \(preview.lossCp) centipawns"
+    }
+
+    /// One object out of a JSON reply, back as JSON text.
+    private static func field(_ name: String, in data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = object[name],
+              let encoded = try? JSONSerialization.data(withJSONObject: value,
+                                                        options: [.sortedKeys, .fragmentsAllowed])
+        else { return nil }
+        return String(decoding: encoded, as: UTF8.self)
     }
 
     private static func request(_ payload: [String: Any]) async throws -> Data {

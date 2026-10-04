@@ -58,6 +58,8 @@ struct CardView: View {
                     chat.coach(prompt: prompt,
                                squares: game.coachingSquares,
                                recent: game.coachingSquaresRecent,
+                               owners: game.coachingOwners,
+                               ownersRecent: game.coachingOwnersRecent,
                                mobility: game.coachingMobility,
                                attackMap: game.coachingAttackMap,
                                checks: game.coachingChecks,
@@ -323,7 +325,7 @@ struct CardView: View {
 
     private var drillTitle: String {
         if openingDrill.active, let drill = openingDrill.state {
-            return "\(drill.name) — \(drill.ply)/\(drill.total)"
+            return "\(drill.name), \(drill.ply)/\(drill.total)"
         }
         return boardState.openingName ?? "Starting position"
     }
@@ -338,11 +340,11 @@ struct CardView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(drill.wrong == 0 ? .green : .orange)
             } else if drill.correct == false {
-                Text("\(drill.youPlayed ?? "That") isn't the line — it goes \(drill.expected ?? "").")
+                Text("\(drill.youPlayed ?? "That") isn't the line. It goes \(drill.expected ?? "").")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange.opacity(0.9))
             } else if let reply = drill.reply {
-                Text("\(drill.youPlayed ?? "") — the book answers \(reply).")
+                Text("\(drill.youPlayed ?? ""). The book answers \(reply).")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
@@ -361,10 +363,14 @@ struct CardView: View {
         VStack(spacing: 8) {
             VStack(spacing: 6) {
             HStack(spacing: 8) {
+                // The news of the game, so it wins the row: without the
+                // priority it lost to the pickers and read "Checkmate, engine…".
                 Text(playStatusText)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
-                Spacer()
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                Spacer(minLength: 4)
                 colourPicker
                 levelPicker
                 Button("New Game") {
@@ -643,15 +649,15 @@ struct CardView: View {
         if game.awaitingCoach { return "Chichi is thinking\u{2026}" }
         switch game.status {
         case "no game yet":
-            return "Click \"New Game\" to start, you're \(game.preferredColour)"
+            return "New Game to start, as \(game.preferredColour)"
         case "ongoing": return "Your move"
         case "check": return "Check!"
-        case "stalemate": return "Stalemate — draw"
+        case "stalemate": return "Stalemate, a draw"
         // Who won is a colour; whether that is you depends on the side you took.
         case let s where s.hasPrefix("checkmate_"):
             let winner = s.hasPrefix("checkmate_white") ? "white" : "black"
             return winner == game.myColour
-                ? "Checkmate — you win! ♜" : "Checkmate — engine wins"
+                ? "Checkmate, you win ♜" : "Checkmate, engine wins"
         case let s where s.hasPrefix("draw"): return "Draw"
         default: return game.status
         }

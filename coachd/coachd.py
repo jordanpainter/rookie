@@ -285,7 +285,7 @@ class Coach:
         if move not in self.board.legal_moves:
             return {"error": f"'{req['uci']}' is not a legal move in this position."}
 
-        jordan_san = self.push(move, by_me=True)
+        your_san = self.push(move, by_me=True)
         # The board as it stands after his move alone. Both moves used to land
         # in the same frame, so his own move was never visible on its own and
         # the reply read as instantaneous rather than fast.
@@ -298,7 +298,7 @@ class Coach:
             engine_san = self.push(self.choose_reply(), by_me=False)
 
         state = self.publish()
-        state.update({"jordan_played": jordan_san, "engine_played": engine_san,
+        state.update({"you_played": your_san, "engine_played": engine_san,
                       "after_your_move": mine_only})
         return state
 
@@ -474,6 +474,11 @@ class Coach:
                 "fork": any(f["move"] == move.uci()
                             for f in features.forks(self.board, self.board.turn)),
             },
+            # What the move itself does, from the position before it. The ranked
+            # facts are all about danger, so a coaching line about a good move
+            # still opened with the worst thing on the board: "Clean. Your pawn
+            # on d6 is undefended." This is the half that is about them.
+            "did": features.move_facts(self.board, move),
         }
 
     def op_piece_focus(self, req):
@@ -957,13 +962,23 @@ class Coach:
         # before the capture, and checking that sentence against the board
         # after it makes a true statement look like an invention.
         recent = {}
+        recent_owners = {}
         if not req.get("fen"):
             probe = board.copy()
             for _ in range(min(2, len(probe.move_stack))):
                 probe.pop()
             recent = {chess.square_name(sq): features.piece_name(piece)
                       for sq, piece in probe.piece_map().items()}
+            recent_owners = {chess.square_name(sq): "yours" if piece.color == board.turn else "theirs"
+                             for sq, piece in probe.piece_map().items()}
         facts["squares_recent"] = recent
+        # Whose piece is on each square. The board maps say what is there and
+        # never whose, so "your pawn on f7 can be taken by your rook on f1" was
+        # checkable right down to the squares and still described two of their
+        # pieces as the player's.
+        facts["owners"] = {chess.square_name(sq): "yours" if piece.color == board.turn else "theirs"
+                           for sq, piece in board.piece_map().items()}
+        facts["owners_recent"] = recent_owners
         facts["mate_in"] = mate
         # Everything true about the position that earns a sentence, best first.
         # The coach picks from this rather than being told which kind of fact

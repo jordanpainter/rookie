@@ -5,7 +5,7 @@
 <h1 align="center">Rookie</h1>
 
 <p align="center">
-  <b>A chess app that explains what just happened</b>
+  <b>An Open Source MacOS Chess Coach App</b>
 </p>
 
 For people who are still learning. It plays, it warns you before you hang a
@@ -14,28 +14,27 @@ wrong.
 
 Everything runs on your own Mac. No account, no server, no subscription.
 
+<p align="center">
+  <img src="docs/media/play.png" width="760" alt="Rookie mid-game: a glass board with hand-drawn pieces, the coaching dial and blunder guard below it, and Chichi answering a question in the panel on the right">
+</p>
+
+## Background
+
+I'm not very good at chess. And it bothers me. So this is what I came up with. Rookie is an app that allows you to play against bots at various levels, practice drills, solve puzzles made out of your old blunders.
+
 ## Meet Chichi
 
 <img src="art/chichi/chichi-jump-board.gif" width="128" align="right" alt="Chichi, a pixel-art rook holding a cheat sheet, jumping on a chessboard">
 
-Chichi is the coach. He is the club player who wanders over, looks at the board
-for three seconds, says the one thing that matters, and goes back to his own
-game. Short, plain, specific: "that knight's attacked twice and defended once, so
-it comes off next move unless it moves or gets help."
+Chichi is the coach. He does not work the chess out. Stockfish does that and
+hands him the facts: what is hanging, what is attacked, where a piece can go,
+whether there is mate. Chichi turns them into a sentence, the way the decent
+player next to you would.
 
-The name does not mean much. It sounds like "cheat sheet", which is what he is
-holding.
-
-**He does not read the board himself, and that is the point.** Every fact he is
-given has been worked out by Stockfish first: what is hanging, every check you
-have, where every piece can go, what attacks what, whether there is mate. His job
-is turning that into a sentence. Then the sentence is checked back against the
-board before you ever see it, and anything that names a piece on the wrong
-square, calls a piece stuck when it has moves, invents an attack, offers a check
-that does not exist, or names a move the engine never suggested is binned rather
-than shown. Some questions skip him entirely because they have exactly one right
-answer: what your options are, whether they can take that piece, what they are
-threatening, and which opening to work on.
+Then his sentence is checked against the same facts, and anything that does not
+match is thrown away instead of shown. That is the whole trick: a small model
+running on your laptop, kept to the one job it is good at, and never trusted on
+the chess.
 
 ## What you can do with it
 
@@ -55,13 +54,21 @@ move, hide the moves and drill it from memory, or tell the Play tab to steer a
 real game towards it and it will tell you who left the book first.
 
 **Review.** Link a chess.com account and it imports every game you have played,
-analyses them, and shows what they cost you: which openings keep going wrong,
-which mistakes repeat, how your rating actually moved.
+analyses them, and shows what they cost you: where the blunders happen, which
+pieces you drop, how the games actually end.
+
+<p align="center">
+  <img src="docs/media/review.png" width="700" alt="The Review tab: 348 games, 48% win rate, a blunder every 5 moves, and bar charts of how games end and which pieces get blundered">
+</p>
 
 **Drill.** Three sets of puzzles: tactics built from **your own blunders** in
 those games, 30,000 from the Lichess set filtered to your rating, and tablebase
 endgames worth knowing. Chichi will describe what a move does without telling you
 whether it solves it.
+
+<p align="center">
+  <img src="docs/media/drill.png" width="700" alt="The Drill tab showing a puzzle built from one of the player's own games, with Your blunders, Lichess and Endgames to choose from">
+</p>
 
 **Settings** (the gear, top right): your chess.com account, which side you play,
 board themes and piece sets, including a hand-drawn one.

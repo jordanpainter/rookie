@@ -1,8 +1,6 @@
 import Foundation
 
-/// One turn from the model: what it said, and a session id when the backend
-/// keeps one. Lives here rather than with any particular backend, because this
-/// is the type every route has to return.
+/// One turn from the model: what it said, and a session id when there is one.
 struct AgentTurnResult {
     let text: String
     let sessionId: String?
@@ -13,23 +11,8 @@ struct AgentTurnResult {
 /// The app never asks the model to do anything but read a packet and write a
 /// line: every fact is worked out before it is sent, and checked after. That is
 /// why it can talk to a model on your own machine with nothing in between.
-///
-/// A build can add another route by setting `other`, which is how the author's
-/// own copy reaches the same coach through something else. Nothing in this file
-/// knows what that something is, so it is the only seam between the two builds.
 enum CoachModel {
-    /// A backend the app was built with, named by `backend` in `config.json`.
-    /// Takes the message and a timeout in seconds.
-    static var other: (name: String, ask: (String, Int) async throws -> AgentTurnResult)?
-
-    private static var useOther: Bool {
-        other.map { AppConfig.shared.backend == $0.name } ?? false
-    }
-
     static func ask(_ message: String, timeoutSeconds: Int = 180) async throws -> AgentTurnResult {
-        if useOther, let other {
-            return try await other.ask(message, timeoutSeconds)
-        }
         let text = try await OllamaClient.shared.ask(message, timeoutSeconds: timeoutSeconds)
         return AgentTurnResult(text: text, sessionId: nil)
     }
@@ -37,10 +20,6 @@ enum CoachModel {
     /// Loads the model before the first real question, so that question does
     /// not pay the cold start.
     static func warmUp() async {
-        if useOther, let other {
-            _ = try? await other.ask("ready?", 180)
-            return
-        }
         await OllamaClient.shared.load()
     }
 }

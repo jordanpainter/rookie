@@ -6,9 +6,6 @@ import Foundation
 ///
 /// The default is Ollama, running the model on this machine.
 struct AppConfig {
-    /// Which route to the model. "ollama" unless a build registers another one
-    /// with `CoachModel.other`, which nothing in a downloaded Rookie does.
-    let backend: String
     /// The Ollama model tag. Chichi's voice was tuned against gemma4:12b, and a
     /// different model will give a different coach.
     let model: String
@@ -46,8 +43,7 @@ struct AppConfig {
             return set.isEmpty ? fallback : set
         }
         let ratings = object["ratings"] as? [String: Int] ?? [:]
-        return AppConfig(backend: value("backend", "ollama"),
-                         model: value("model", "gemma4:12b"),
+        return AppConfig(model: value("model", "gemma4:12b"),
                          rating: ratings["rapid"] ?? ratings["blitz"] ?? ratings["bullet"])
     }
 }

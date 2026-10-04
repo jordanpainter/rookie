@@ -108,6 +108,8 @@ def facts_for_model(facts_json, already_said=None, hiding_solution=False):
     obj = json.loads(facts_json)
     for k in ("squares", "squares_recent", "attack_map", "summary"):
         obj.pop(k, None)
+    if obj.get("in_check") and obj.get("legal_san"):
+        obj["ways_out"] = obj["legal_san"]
     obj.pop("legal_san", None)
     if hiding_solution:
         for k in ("mate_in", "your_checks", "your_forks", "worth_saying"):
@@ -311,8 +313,26 @@ def false_check_offer(line, checks):
     return None
 
 
-def false_claim(line, squares, recent=None, mobility=None, attack_map=None, checks=None):
+def false_owner(line, owners, recent):
+    """`ChatStore.falseOwner`: whose piece it actually is."""
+    if not owners:
+        return None
+    for m in re.finditer(rf"\b(your|their|his|her|its|my)\s+(?:own\s+)?({PIECES})s?\s+(?:on|at)\s+([a-h][1-8])\b",
+                         line, re.I):
+        said, piece, sq = m.group(1).lower(), m.group(2).lower(), m.group(3).lower()
+        claimed = "yours" if said in ("your", "my") else "theirs"
+        owner = owners.get(sq)
+        if owner and owner != claimed and recent.get(sq) != claimed:
+            return f"the {piece} on {sq} as {claimed}, when it is {owner}"
+    return None
+
+
+def false_claim(line, squares, recent=None, mobility=None, attack_map=None, checks=None,
+                owners=None, owners_recent=None):
     recent = recent or {}
+    w = false_owner(line, owners or {}, owners_recent or {})
+    if w:
+        return w
     w = (false_immobility(line, mobility or {}) or false_relation(line, attack_map or {})
          or false_check_offer(line, checks if checks is not None else ["x"]))
     if w:
@@ -473,8 +493,8 @@ def pick_question(rng, last_coach, socratic_pending, board, last_question=None):
 
 def run_game(n, args, rng, model, log, rows, use_tuple):
     colour = ["white", "black", "random"][n % 3]
-    level = rng.choice([1, 1, 2, 2, 3])
-    mode = "socratic" if n % 2 else "notes"
+    level = args.level or rng.choice([1, 1, 2, 2, 3])
+    mode = args.mode or ("socratic" if n % 2 else "notes")
     # Every fourth game plays with the guard off, which used to leave every move
     # unrated and the coach silent.
     guard_on = n % 4 != 0
@@ -489,6 +509,7 @@ def run_game(n, args, rng, model, log, rows, use_tuple):
     player.configure({"Skill Level": 0})
     last_headline, last_coach, socratic_pending, advised = None, None, False, None
     last_question = None
+    quiet_for, bad_news_running = 0, 0
 
     def record(kind, q, packet, text, secs, shown, verdict, candidates, extra=None):
         notes, jargon = audit(text, board, candidates) if text else ([], [])
@@ -616,7 +637,8 @@ def run_game(n, args, rng, model, log, rows, use_tuple):
                 text, secs = model.ask(prompt)
                 wrong = false_claim(text, fobj.get("squares", {}), fobj.get("squares_recent", {}),
                                     fobj.get("your_mobility", {}), fobj.get("attack_map", {}),
-                                    fobj.get("your_checks", []))
+                                    fobj.get("your_checks", []),
+                                    fobj.get("owners", {}), fobj.get("owners_recent", {}))
                 inv = None if wrong else invented_move(text, allowed)
                 if wrong:
                     shown, verdict = "[BINNED: not on the board]", f"binned: {wrong}"
@@ -672,7 +694,19 @@ def run_game(n, args, rng, model, log, rows, use_tuple):
         if board.is_game_over():
             break
 
-        worth = reaction == "Hell yeah!" or verdict.startswith(("the strongest", "mistake", "blunder"))
+        bad = verdict.startswith(("mistake", "blunder"))
+        best = verdict.startswith("the strongest")
+        sound = verdict.startswith("a sound move")
+        worth = (reaction == "Hell yeah!" or best or bad
+                 or (sound and (quiet_for >= 3 or bad_news_running >= 2)))
+        if bad_news_running >= 2 and verdict.startswith("mistake"):
+            worth = False
+        if mode == "notes":
+            if worth:
+                quiet_for = 0
+                bad_news_running = bad_news_running + 1 if bad else 0
+            else:
+                quiet_for += 1
         if mode == "notes" and not worth:
             continue
         facts = raw("describe")
@@ -680,7 +714,9 @@ def run_game(n, args, rng, model, log, rows, use_tuple):
         if fobj.get("in_check"):
             reaction = None
         packet, last_headline = facts_for_model(facts, last_headline)
-        prompt = (f"[in-play coaching, mode={mode}]\nPlayed: {san}\n"
+        good = verdict.startswith(("the strongest move", "a sound move"))
+        did_line = f"\nWhat their move did: {json.dumps(prev.get('did'))}" if good and prev.get("did") else ""
+        prompt = (f"[in-play coaching, mode={mode}]\nPlayed: {san}{did_line}\n"
                   f"Reaction to open with: {reaction or 'none, do not react at all'}\n"
                   f"Engine's verdict on it: {verdict}\n"
                   f"Opponent replied: {reply or 'nothing yet'}\nPosition facts: {packet}")
@@ -784,7 +820,8 @@ def run_puzzles(count, args, rng, model, log, rows, use_tuple):
                 text, secs = model.ask(prompt)
                 wrong = false_claim(text, fobj.get("squares", {}), fobj.get("squares_recent", {}),
                                     fobj.get("your_mobility", {}), fobj.get("attack_map", {}),
-                                    fobj.get("your_checks", []))
+                                    fobj.get("your_checks", []),
+                                    fobj.get("owners", {}), fobj.get("owners_recent", {}))
                 shown = "[BINNED]" if wrong else text
                 kind, verdict = "puzzle/open", (f"binned: {wrong}" if wrong else "ok")
             leaked = bool(solution and text and re.search(rf"\b{re.escape(solution.rstrip('+#'))}\b", text))
@@ -809,6 +846,9 @@ def main():
     ap.add_argument("--tuple-packet", action="store_true",
                     help="reproduce the old bug: facts sent as a printed Swift tuple")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--level", type=int, default=0, help="fix the opponent's level (default: mixed)")
+    ap.add_argument("--mode", default="", choices=["", "notes", "socratic"],
+                    help="fix the coaching mode (default: alternating)")
     ap.add_argument("--allow-battery", action="store_true",
                     help="run on battery too; only with somebody at the keyboard")
     ap.add_argument("--max-minutes", type=float, default=90,

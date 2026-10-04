@@ -14,7 +14,7 @@ enum Facts {
     /// for the app, which shows it while the model is still thinking, and never
     /// reaches the model.
     private static let appOnly = ["squares", "squares_recent", "attack_map", "summary",
-                                  "legal_san"]
+                                  "legal_san", "owners", "owners_recent"]
 
     /// Where each kind of ranked entry also appears in raw form. Dropping an
     /// entry from `worth_saying` alone achieved nothing: the same piece was
@@ -67,6 +67,14 @@ enum Facts {
         guard let data = json.data(using: .utf8),
               var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return (json, nil) }
+        // In check, the only useful sentence is how to get out, and the legal
+        // moves are stripped with everything else the model does not need. So
+        // the coaching line was "You are in check", which the board, the status
+        // line and the player all knew already, and the next one was deleted as
+        // a duplicate. In check there are rarely more than a handful of moves.
+        if object["in_check"] as? Bool == true, let legal = object["legal_san"] {
+            object["ways_out"] = legal
+        }
         for name in appOnly { object.removeValue(forKey: name) }
         if hidingSolution { for name in solution { object.removeValue(forKey: name) } }
 

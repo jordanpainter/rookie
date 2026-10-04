@@ -24,9 +24,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // wake if he is muted.
         if game.coaching.usesModel { chat.warmUp() }
 
-        // Only the personal build has this file; the public one talks to Ollama,
-        // and `publish.sh` drops every line marked this way.
-
         let size = CGSize(width: CardSize.width, height: CardSize.height)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),

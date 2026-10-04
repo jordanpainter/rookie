@@ -297,10 +297,6 @@ struct SettingsView: View {
         if let account = history.account, account.username != nil {
             VStack(alignment: .leading, spacing: 8) {
                 sectionTitle("Set from your rating")
-                Text("These were one person's numbers, hardcoded. They now come from the account above.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
 
                 row("Your rating", ratingSummary(account))
                 row("Openings shown for", "players rated \(account.explorerBands.replacingOccurrences(of: ",", with: ", "))")

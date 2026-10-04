@@ -73,11 +73,11 @@ struct EndgameDrillView: View {
 
             if let played = state.youPlayed {
                 if state.wasOptimal == true {
-                    Text("\(played) — the fastest move.")
+                    Text("\(played), the fastest move.")
                         .font(.system(size: 11))
                         .foregroundStyle(.green.opacity(0.85))
                 } else {
-                    Text("\(played) — still winning, but \(state.bestWas ?? "another move") mates sooner.")
+                    Text("\(played), still winning, but \(state.bestWas ?? "another move") mates sooner.")
                         .font(.system(size: 11))
                         .foregroundStyle(.orange.opacity(0.85))
                 }
