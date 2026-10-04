@@ -19,6 +19,7 @@ struct CardView: View {
     @EnvironmentObject var endgame: EndgameStore
     @State private var mode: BoardMode = .play
     @FocusState private var searchFocused: Bool
+    @FocusState private var chatFocused: Bool
     @State private var showingSettings = false
 
     var body: some View {
@@ -363,13 +364,14 @@ struct CardView: View {
         VStack(spacing: 8) {
             VStack(spacing: 6) {
             HStack(spacing: 8) {
-                // The news of the game, so it wins the row: without the
-                // priority it lost to the pickers and read "Checkmate, engine…".
+                // Every status is short enough to fit beside the pickers and the
+                // button: the row is 416pt and they take about 260 of it. Giving
+                // this text priority instead only moved the truncation along, to
+                // a "New Game" button that read "New…".
                 Text(playStatusText)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .layoutPriority(1)
+                    .lineLimit(1)
                 Spacer(minLength: 4)
                 colourPicker
                 levelPicker
@@ -377,6 +379,7 @@ struct CardView: View {
                     chat.divider("New game")
                     game.newGame()
                 }
+                    .fixedSize()
                     .buttonStyle(.plain)
                     .font(.system(size: 12))
                     .padding(.horizontal, 8)
@@ -648,8 +651,7 @@ struct CardView: View {
     private var playStatusText: String {
         if game.awaitingCoach { return "Chichi is thinking\u{2026}" }
         switch game.status {
-        case "no game yet":
-            return "New Game to start, as \(game.preferredColour)"
+        case "no game yet": return "No game yet"
         case "ongoing": return "Your move"
         case "check": return "Check!"
         case "stalemate": return "Stalemate, a draw"
@@ -657,10 +659,15 @@ struct CardView: View {
         case let s where s.hasPrefix("checkmate_"):
             let winner = s.hasPrefix("checkmate_white") ? "white" : "black"
             return winner == game.myColour
-                ? "Checkmate, you win ♜" : "Checkmate, engine wins"
+                ? "Checkmate, you win ♜" : "Checkmate, they win"
         case let s where s.hasPrefix("draw"): return "Draw"
         default: return game.status
         }
+    }
+
+    private func sendChat() {
+        chat.send()
+        chatFocused = false
     }
 
     private var chatPanel: some View {
@@ -707,14 +714,18 @@ struct CardView: View {
             }
 
             HStack(spacing: 8) {
+                // Dropping focus on send is not a flourish: the field keeps its
+                // scroll offset after the text is cleared, so the placeholder
+                // came back as "sk Chichi…" with the A scrolled out of sight.
                 TextField("Ask Chichi…", text: $chat.draft)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(Color.primary.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .onSubmit { chat.send() }
-                Button(action: chat.send) {
+                    .focused($chatFocused)
+                    .onSubmit { sendChat() }
+                Button(action: sendChat) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 22))
                 }
