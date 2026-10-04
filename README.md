@@ -18,10 +18,6 @@ Everything runs on your own Mac. No account, no server, no subscription.
   <img src="docs/media/demo.gif" width="760" alt="Rookie in use: a move is played, the engine answers, Chichi remarks on the position, and a typed question comes back with real moves">
 </p>
 
-<p align="center">
-  <sub><a href="docs/media/demo.mp4">Sharper version, 10 seconds</a></sub>
-</p>
-
 ## Background
 
 I'm not very good at chess. And it bothers me. So this is what I came up with.
