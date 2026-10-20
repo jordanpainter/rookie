@@ -189,22 +189,24 @@ struct RootView: View {
         }
         .task {
             guard !setup.decided else { return }
-            // Before anything is asked of it, make sure the daemon holding the
-            // socket is this build's, not one left over from an older one.
-            await Task.detached(priority: .userInitiated) { CoachClient.restartIfStale() }.value
-            if seen {
-                setup.decided = true
-                return
-            }
-            // Don't hold an empty window on a slow check. Starting the engine
-            // for the first time can take twenty seconds, and until this was
-            // bounded the app showed nothing but a spinner for all of it.
-            let check = Task { await setup.checkAll() }
+            // Don't hold an empty window on anything slow, the daemon check
+            // below included: on a first launch it waits on the same lock that
+            // starting the engine holds for twenty seconds. This bound used to
+            // be set up after that call, so it covered the quick half and the
+            // app showed a spinner for the whole of the slow one.
             let impatience = Task {
                 try? await Task.sleep(for: .seconds(4))
                 setup.decided = true
             }
-            await check.value
+            // Before anything is asked of it, make sure the daemon holding the
+            // socket is this build's, not one left over from an older one.
+            await Task.detached(priority: .userInitiated) { CoachClient.restartIfStale() }.value
+            if seen {
+                impatience.cancel()
+                setup.decided = true
+                return
+            }
+            await setup.checkAll()
             impatience.cancel()
             // Nothing the app can fix: there is nothing to set up, so say
             // nothing. That covers both a complete install and one it could not

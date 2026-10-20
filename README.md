@@ -8,69 +8,82 @@
   <b>An open source chess coach for macOS</b>
 </p>
 
-For people who are still learning. It plays, it warns you before you hang a
-piece, it reviews your real games, and it drills the tactics you actually get
-wrong.
+<p align="center">
+  <a href="../../releases">Download Rookie</a> &nbsp;&middot;&nbsp;
+  <a href="https://ollama.com/download">Get Ollama</a> &nbsp;&middot;&nbsp;
+  <a href="#installing-it">Install guide</a>
+</p>
 
-Everything runs on your own Mac. No account, no server, no subscription.
+I'm not very good at chess and it bothers me, so I built this. Apps that I've
+tried are great at telling you what went wrong after the game. I wanted
+something that spoke up while the piece was still on the board.
+
+It all runs on your Mac. No account and totally free.
+
+The coach is a language model, run locally through
+[Ollama](https://ollama.com). He only does the talking: Stockfish and the app
+work out the moves and the threats before he sees them, so he can't invent a
+move that isn't there.
 
 <p align="center">
   <img src="docs/media/demo.gif" width="760" alt="Rookie in use: a move is played, the engine answers, Chichi remarks on the position, and a typed question comes back with real moves">
 </p>
 
-## Background
-
-I'm not very good at chess. And it bothers me. So this is what I came up with.
-
-You play bots that are actually beatable, drill puzzles built from your own old
-blunders rather than a stranger's, and get told what you just did wrong while
-you can still do something about it.
-
 ## Meet Chichi
 
 <img src="art/chichi/chichi-jump-board.gif" width="128" align="right" alt="Chichi, a pixel-art rook holding a cheat sheet, jumping on a chessboard">
 
-Chichi is the coach, and he talks like the decent player sitting next to you:
-"that knight's attacked twice and defended once, so it comes off next move
-unless it moves or gets help". Ask him anything mid-game, in plain English, and
-he answers about the position in front of you.
+Chichi is the coach, and he's chill about it. When a move goes wrong he tells
+you what it cost and what to do next, then leaves it there. How much he says
+is up to you, from a nod at a good move to a warning about the piece you're
+about to throw away, and if you're stuck you can ask him for some options.
 
-## What you can do with it
+## Playing a game
 
-**Play.** A game against Stockfish at eight levels, from "actually beatable" to
-"stop it". Play either colour. Take moves back.
+You play Stockfish at eight levels, as either colour, and you can take moves
+back.
 
-- **The blunder guard** stops a move that drops material and tells you what it
-  would cost, before it happens. Play it anyway if you meant it.
-- **The coaching dial** is Mute, Notes or Socratic. Notes remarks on moves worth
-  remarking on. Socratic holds the board and asks you a question about the move
-  you just played.
-- **Ask anything, any time.** Where should I move, what is he threatening, should
-  I play Bf4, why was that bad, what does hanging mean, how does castling work.
+If you're about to drop a piece, Rookie stops you and tells you what the move
+would cost. You can play it anyway if you meant it.
 
-**Explore.** Over 3,300 named openings, searchable. Step through a line move by
-move, hide the moves and drill it from memory, or tell the Play tab to steer a
-real game towards it and it will tell you who left the book first.
+Mute turns Chichi off. Notes gets you a remark on the moves worth remarking
+on. Socratic holds the board and asks you a question about the move you just
+played instead of telling you anything.
 
-**Review.** Link a chess.com account and it imports every game you have played,
-analyses them, and shows what they cost you: where the blunders happen, which
-pieces you drop, how the games actually end.
+Ask Chichi anything in plain English about the current board and he'll do his
+best to answer.
+
+## Openings
+
+Rookie has over 3,300 named openings, searchable. Step through a line move by
+move, or hide the moves and drill it from memory. Point the Play tab at one
+and it'll steer a real game towards it, then tell you who left the book first.
+
+## Reviewing your real games
+
+Link a chess.com account and Rookie pulls in every game you've played and
+analyses them. The report shows where in the game your blunders arrive, which
+pieces you keep dropping, and how your games actually end.
 
 <p align="center">
   <img src="docs/media/review.png" width="700" alt="The Review tab: 348 games, 48% win rate, a blunder every 5 moves, and bar charts of how games end and which pieces get blundered">
 </p>
 
-**Drill.** Three sets of puzzles: tactics built from **your own blunders** in
-those games, 30,000 from the Lichess set filtered to your rating, and tablebase
-endgames worth knowing. Chichi will describe what a move does without telling you
-whether it solves it.
+## Drilling
+
+Three sets of puzzles. The ones built out of your own blunders in those games,
+30,000 from the Lichess set filtered to your rating, and tablebase endgames
+worth knowing. Ask Chichi what a move does and he'll tell you, but he can't
+tell you whether it's right, because the app hides the answer from him too.
 
 <p align="center">
   <img src="docs/media/drill.png" width="700" alt="The Drill tab showing a puzzle built from one of the player's own games, with Your blunders, Lichess and Endgames to choose from">
 </p>
 
-**Settings** (the gear, top right): your chess.com account, which side you play,
-board themes and piece sets, including a hand-drawn one.
+## Settings
+
+The gear at the top right has your chess.com account, which side you play, and
+the board themes and piece sets, including a hand-drawn one.
 
 ## Installing it
 
@@ -78,31 +91,31 @@ You need an Apple Silicon Mac on macOS 14 or later, and about 10 GB free.
 
 1. Download `Rookie.zip` from [Releases](../../releases), unzip it, and drag
    Rookie to your Applications folder.
-2. **The first open needs a right-click.** Rookie is not signed with an Apple
-   developer certificate, so double-clicking it gets you "Apple could not verify
-   it". Right-click the app, choose **Open**, then **Open** again in the dialog.
-   Only the first launch needs this. (If you double-clicked first, it is in
-   System Settings → Privacy & Security → **Open Anyway**.)
-3. Install [Ollama](https://ollama.com/download). It runs the coach's model on
-   your machine and it is free.
-4. Open Rookie. It will offer to fetch what it still needs: the model (about
+2. The first open needs a right-click. I haven't signed Rookie with an Apple
+   developer certificate, so double-clicking it gets you "Apple could not
+   verify it". Right-click the app, choose Open, then Open again in the dialog.
+   Only the first launch needs this. (If you double-clicked first, it's in
+   System Settings → Privacy & Security → Open Anyway.)
+3. Install [Ollama](https://ollama.com/download), which runs the coach's model
+   on your machine and is free.
+4. Open Rookie. It'll offer to fetch what it still needs: the model (about
    8 GB, once), the opening list, and the puzzles. You can skip all of it and
-   just play; the checklist comes back next launch.
+   just play, and the checklist comes back next launch.
 
-Rookie is built and tested against `gemma4:12b`. If that is too much model for
-your Mac, Settings has a picker listing whatever you already have in Ollama:
-a smaller one gives you a blunter coach, and the chess itself is worked out by
+I built and tested Rookie against `gemma4:12b`. If that's too much model for
+your Mac, Settings has a picker listing whatever you already have in Ollama. A
+smaller one gives you a blunter coach, and the chess itself is worked out by
 the engine either way.
 
-That is the whole install. Rookie carries its own Python and its own copy of
-Stockfish, so there is nothing else to set up.
+Rookie carries its own Python and its own copy of Stockfish, so there's
+nothing else to install.
 
 ## Privacy
 
-Nothing you play is uploaded anywhere. The coach runs locally through Ollama.
-The only things that leave your Mac are the downloads above and, if you ask for
-them, public data you already have: your own chess.com games, and the Lichess
-opening explorer's move statistics.
+Nothing you play is uploaded anywhere, and the coach runs locally through
+Ollama. The only things that leave your Mac are the downloads above and, if
+you ask for them, public data you already have: your own chess.com games, and
+the Lichess opening explorer's move statistics.
 
 ## Building it yourself
 
@@ -112,12 +125,14 @@ swift build && .build/debug/ChessCoach
 ./build-app.sh    # makes dist/Rookie.app and dist/Rookie.zip
 ```
 
-`setup.sh` skips anything already installed. The Swift app is in `Sources/`, the
-engine and analysis half is the Python in `coachd/`, and they talk over a Unix
-socket: `coachd` holds one warm Stockfish and answers questions about the
-position, and nothing about a move is ever left to the model.
+`setup.sh` skips anything already installed. The app is the Swift in
+`Sources/`, the engine and analysis half is the Python in `coachd/`, and they
+talk over a Unix socket. `coachd` holds one warm Stockfish and answers
+questions about the position, so nothing about a move is ever left to the
+model.
 
 ## Licence
 
-GPL-3.0. See `LICENSE`, and `NOTICE.md` for the bundled components and the piece
-sets, each with its own licence and author.
+GPL-3.0. See `LICENSE`, and `NOTICE.md` for the bundled components and the
+piece sets, each with its own licence and author.
+x
