@@ -11,7 +11,7 @@
 <p align="center">
   <a href="../../releases/latest/download/Rookie.zip"><img alt="Download Rookie" src="https://img.shields.io/badge/Download-Rookie-769656?logo=apple&logoColor=white"></a>
   <a href="https://ollama.com/download"><img alt="Requires Ollama" src="https://img.shields.io/badge/Requires-Ollama-black?logo=ollama&logoColor=white"></a>
-  <a href="#installing-it"><img alt="Install guide" src="https://img.shields.io/badge/Install-guide-4b5563"></a>
+  <a href="#installing-it"><img alt="Install guide" src="https://img.shields.io/badge/Install-guide-EEEED2"></a>
 </p>
 
 I'm not very good at chess and it bothers me, so I built this. Apps that I've
